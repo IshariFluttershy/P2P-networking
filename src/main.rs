@@ -3,6 +3,33 @@ use mini_redis::{Connection, Frame, client, Result};
 use std::thread;
 use std::time::Duration;
 use std::env;
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc, serde::ts_seconds_option};
+use std::fs::File;
+use std::fs;
+use std::io::prelude::*;
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, Debug)]
+enum PeerStatus {
+    Idle,
+    OutConnecting, 
+    OutHandshaking, 
+    OutAlive, 
+    InHandshaking, 
+    InAlive, 
+    Banned,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Peer {
+    status: PeerStatus,
+    #[serde(with = "ts_seconds_option")]
+    last_alive: Option<DateTime<Utc>>,
+    #[serde(with = "ts_seconds_option")]
+    last_failure: Option<DateTime<Utc>>,
+    ip: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<()>{
@@ -11,9 +38,41 @@ async fn main() -> Result<()>{
     let client_port = args[2].clone();
     let client_port2 = args[3].clone();
 
-    //client_port = String::from("hehehe");
-    println!("client port = {}", client_port);
-    println!("args2 = {}", args[2]);
+    let peer = Peer {
+        status: PeerStatus::Idle,
+        last_alive: Some(Utc::now()),
+        last_failure: Some(Utc::now()),
+        ip: String::from("127.0.0.1:555"),
+    };
+
+    let peer2 = Peer {
+        status: PeerStatus::Idle,
+        last_alive: Some(Utc::now()),
+        last_failure: Some(Utc::now()),
+        ip: String::from("127.0.0.1:666"),
+    };
+
+    let json1 = serde_json::to_string_pretty(&peer)?;
+    let json2 = serde_json::to_string_pretty(&peer)?;
+
+    let mut jsons = HashMap::new();
+    jsons.insert(peer.ip.clone(), peer);
+    jsons.insert(peer2.ip.clone(), peer2);
+
+    let jsons = serde_json::to_string_pretty(&jsons)?;
+
+    let mut file = File::create("foo.txt")?;
+    file.write_all(jsons.as_bytes())?;
+
+
+    let file = fs::read_to_string("foo.txt")?;
+    let deserialized_peers : HashMap<&str, Peer> = serde_json::from_str(&file)?;
+
+    println!("{:?}", deserialized_peers);
+
+
+
+
 
     // Bind the listener to the address
     tokio::spawn( async move {
@@ -73,7 +132,6 @@ async fn start_client(port: String) {
 
 async fn process(socket: TcpStream) {
     use mini_redis::Command::{self, Get, Set};
-    use std::collections::HashMap;
 
     // A hashmap is used to store data
     let mut db = HashMap::new();
