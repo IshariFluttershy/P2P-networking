@@ -1,0 +1,10 @@
+dictionnaire de peers :
+clef = ip
+contenu = {
+    status (enum : Idle, OutConnecting, OutHandshaking, OutAlive, InHandshaking, InAlive, Banned)
+    last_alive Option<DateTime<Utc>>
+    last_failure Option<DateTime<Utc>>
+}
+
+Tout ca dans un json je suppose (utiliser la crate serde json)
+
