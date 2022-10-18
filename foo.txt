@@ -1,14 +1,14 @@
 {
   "127.0.0.1:666": {
     "status": "Idle",
-    "last_alive": 1666123243,
-    "last_failure": 1666123243,
+    "last_alive": 1666131609,
+    "last_failure": 1666131609,
     "ip": "127.0.0.1:666"
   },
   "127.0.0.1:555": {
     "status": "Idle",
-    "last_alive": 1666123243,
-    "last_failure": 1666123243,
+    "last_alive": 1666131609,
+    "last_failure": 1666131609,
     "ip": "127.0.0.1:555"
   }
 }

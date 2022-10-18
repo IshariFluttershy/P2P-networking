@@ -3,8 +3,15 @@ name = "massa-test"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "network"
+path = "src/lib.rs"
+
+[[bin]]
+name = "binary"
+path = "src/bin.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-# serde = { version = "1.0", features = ["derive"] }
 
 [dependencies]
 tokio = {version = "1", features = ["full"]}
