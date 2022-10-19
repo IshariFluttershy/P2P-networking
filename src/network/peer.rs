@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{Error, Write};
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PeerStatus {
     Idle,
     OutConnecting, 
@@ -16,7 +16,7 @@ pub enum PeerStatus {
     Banned,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Peer {
     pub status: PeerStatus,
     #[serde(with = "ts_seconds_option")]
@@ -40,9 +40,6 @@ pub fn create_new_peers_json_file(path: &str) -> Result<(), Error>{
         last_failure: Some(Utc::now()),
         ip: String::from("127.0.0.1:666"),
     };
-
-    let json1 = serde_json::to_string_pretty(&peer)?;
-    let json2 = serde_json::to_string_pretty(&peer)?;
 
     let mut jsons = HashMap::new();
     jsons.insert(peer.ip.clone(), peer);
