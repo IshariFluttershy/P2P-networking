@@ -57,15 +57,11 @@ impl NetworkController {
             loop {
                 let listener = TcpListener::bind("127.0.0.1:".to_owned() + &listen_port2).await.unwrap();
                 let (socket, socket_addr) = listener.accept().await.unwrap();
-                tx.send(NetworkControllerEvent::CandidateConnection{
+                tx2.send(NetworkControllerEvent::CandidateConnection{
                     ip: socket_addr.ip().to_string() + &socket_addr.port().to_string(),
                     socket: socket,
                     is_outgoing: false,
                 }).await;
-                /*tokio::spawn( async move {
-                    process(socket).await;
-                    println!("Ca bosse encore et toujours dans le thread");
-                });*/
             }
         });
 
@@ -86,18 +82,6 @@ impl NetworkController {
         };
 
         net.start_clients(tx2);
-        /*let peers2 = peers.clone();
-        // Clients
-        tokio::spawn( async move {
-            test(&peers2);
-            /*for (_, peer) in peers {
-                tokio::spawn( async {
-                    start_client(peer.ip).await;
-                });
-            }*/
-        });*/
-
-
         
         Ok(net)
     }
