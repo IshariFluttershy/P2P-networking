@@ -52,16 +52,6 @@ async fn main() -> Result<()>{
                         } else {
                             println!("Connexion entrante acceptée: {:?}", ip)
                         }
-                        // ip is the peer ip, and socket is a tokio TCPStream
-                        // triggered when a new TCP connection with a peer is established
-                        // is_outgoing is true if our node has connected to the peer node
-                        // is_outgoing is false if the peer node has connected to our node
-                        
-                        // here, a handshake must be performed by reading/writing data to socket
-                        //  if the handshake succesds, call net.feedback_peer_alive(ip).await; to signal NetworkController to set the peer in InAlive or OutAlive state (this should update last_alive)
-                        //  if handshake fails or the connection closes unexpectedly at any time, call net.feedback_peer_failed(ip).await; to signal NetworkController to set the peer status to Idle  (this should update last_failure)
-                        
-                        // once the handshake is done, we can use this peer socket in main.rs
                     }
                 },
                 Err(e) => println!("Ca renvoie une erreur: {}", e),

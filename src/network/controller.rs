@@ -110,18 +110,6 @@ async fn start_client(socket: String, tx: Sender<NetworkControllerEvent::Candida
         socket: client,
         is_outgoing: true,
     }).await;
-    /*client.set("hello", port.clone().into()).await.unwrap();
-    
-    loop {
-        let result = client.get("hello").await;
-        match result {
-            Ok(t) => println!("got value from the server; result={:?}", t),
-            Err(e) => {println!("cannot get value from the server; error={:?}", e);
-            client = connect_client(&("127.0.0.1:".to_owned() + &port)).await;
-            client.set("hello", port.clone().into()).await.unwrap();},
-        }
-        thread::sleep(Duration::from_secs(1));
-    }*/
 }
 
 async fn connect_client(socket: &str) -> TcpStream {
