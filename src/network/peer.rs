@@ -29,8 +29,8 @@ pub struct Peer {
 pub fn create_new_peers_json_file(path: &str) -> Result<(), Error>{
     let peer = Peer {
         status: PeerStatus::Idle,
-        last_alive: Some(Utc::now()),
-        last_failure: Some(Utc::now()),
+        last_alive: None,
+        last_failure: None,
         ip: String::from("127.0.0.1:555"),
     };
 
@@ -41,14 +41,14 @@ pub fn create_new_peers_json_file(path: &str) -> Result<(), Error>{
         ip: String::from("127.0.0.1:666"),
     };
 
-    let mut jsons = HashMap::new();
-    jsons.insert(peer.ip.clone(), peer);
-    jsons.insert(peer2.ip.clone(), peer2);
+    let mut peers = HashMap::new();
+    peers.insert(peer.ip.clone(), peer);
+    peers.insert(peer2.ip.clone(), peer2);
 
-    let jsons = serde_json::to_string_pretty(&jsons)?;
+    let json = serde_json::to_string_pretty(&peers)?;
 
     let mut file = File::create(path)?;
-    file.write_all(jsons.as_bytes())?;
+    file.write_all(json.as_bytes())?;
 
     Ok(())
 }
