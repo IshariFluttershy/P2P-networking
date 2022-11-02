@@ -1,12 +1,12 @@
 {
-  "127.0.0.1": {
-    "status": "Idle",
+  "127.0.2.1": {
+    "status": "OutConnecting",
     "last_alive": 1666142706,
     "last_failure": 1666142706,
-    "ip": "127.0.0.1"
+    "ip": "127.0.2.1"
   },
   "127.0.1.1": {
-    "status": "Idle",
+    "status": "OutConnecting",
     "last_alive": 1666142706,
     "last_failure": 1666142706,
     "ip": "127.0.1.1"

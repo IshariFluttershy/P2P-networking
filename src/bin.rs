@@ -24,7 +24,7 @@ async fn main() -> Result<(), Error>{
     let args: Vec<String> = env::args().collect();
     let ip_addr = args[1].clone();
 
-    let peers_file = "foo.json";
+    let peers_file = String::from("foo.json");
     let listen_port = String::from("6380");
     let target_outgoing_connections = 5;
     let max_incoming_connections = 5;
