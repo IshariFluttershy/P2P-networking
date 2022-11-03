@@ -24,7 +24,7 @@ async fn main() -> Result<(), Error>{
     let args: Vec<String> = env::args().collect();
     let ip_addr = args[1].clone();
 
-    let peers_file = String::from("foo.json");
+    let peers_file = String::from(ip_addr.clone() + ".json");
     let listen_port = String::from("6380");
     let target_outgoing_connections = 5;
     let max_incoming_connections = 5;
@@ -54,18 +54,18 @@ async fn main() -> Result<(), Error>{
                 Ok(msg) => match msg {
                     NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
                         net.feedback_peer_connected(&ip, is_outgoing);
+
                         let result;
                         if is_outgoing {
                             result = try_to_handshake(&socket).await;
                         } else {
                             result = listen_to_handshake(&socket).await;
                         }
-                        
+
                         match result {
                             Ok(()) => net.feedback_peer_alive(&ip).await,
                             _ => net.feedback_peer_failed(&ip).await,
                         }
-                        println!("État du peer {}: {:?}", socket.peer_addr().unwrap().ip(), net.get_peer_status(&ip));
                     }
                 },
                 Err(e) => println!("Ca renvoie une erreur: {}", e),

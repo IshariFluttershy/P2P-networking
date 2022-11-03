@@ -16,12 +16,12 @@ use std::io::{Error, ErrorKind, Write};
 use super::peer::{Peer, PeerStatus};
 use std::time::Duration;
 use std::thread;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpStream, TcpSocket};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use mini_redis::{Connection, Frame, client};
 use std::str;
-use chrono::{DateTime, Utc, serde::ts_seconds_option};
+use chrono::{DateTime, Utc, serde::ts_seconds_option, Local};
 use std::fs::File;
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -67,8 +67,10 @@ impl NetworkController {
         // Listener. Listen to listen_port, accept connections and send a message to rx when accepted
         tokio::spawn( async move {
             loop {
+                println!(" DANS LISTENER adresse ip de base: {}", ip_address2.clone());
                 let listener = TcpListener::bind(ip_address2.clone() + ":" + &listen_port2).await.unwrap();
                 let (socket, socket_addr) = listener.accept().await.unwrap();
+                println!(" DANS LISTENER Adresse du socket: {}, adresse ip: {}", socket.local_addr().unwrap().ip(), socket_addr.ip().to_string());
                 tx2.send(NetworkControllerEvent::CandidateConnection{
                     ip: socket_addr.ip().to_string(),
                     socket: socket,
@@ -113,11 +115,52 @@ impl NetworkController {
         Ok(net)
     }
 
+
+    // Public functions
     pub async fn wait_event(&mut self) -> Result<NetworkControllerEvent::CandidateConnection, &str> {
         self.rx.recv().await.ok_or("Wait_event returns an error")
     }
 
+    pub fn feedback_peer_connected(&mut self, ip: &str, is_outgoing: bool)
+    {
+        let mut peers = self.peers.lock();
+        
+        if let None = peers.get_mut(ip) {
+            peers.insert(String::from(ip), Peer {
+                status: PeerStatus::Idle,
+                last_alive: Some(Utc::now()),
+                last_failure: None,
+                ip: String::from(ip),
+            });
+        }
+        
+        if is_outgoing == true {
+            peers.get_mut(ip).unwrap().status = PeerStatus::OutHandshaking;
+        } else {
+            peers.get_mut(ip).unwrap().status = PeerStatus::InHandshaking;
+        }
+    }
     
+    pub async fn feedback_peer_alive(&mut self, ip: &str) {
+        let mut peers = self.peers.lock();
+        match peers.get(ip).unwrap().status {
+            PeerStatus::InHandshaking => peers.get_mut(ip).unwrap().status = PeerStatus::InAlive,
+            PeerStatus::OutHandshaking => peers.get_mut(ip).unwrap().status = PeerStatus::OutAlive,
+            _ => (),
+        }
+        peers.get_mut(ip).unwrap().last_alive = Some(Utc::now());
+    }
+    pub async fn feedback_peer_failed(&mut self, ip: &str) {
+        self.peers.lock().get_mut(ip).unwrap().status = PeerStatus::Idle;
+        self.peers.lock().get_mut(ip).unwrap().last_failure = Some(Utc::now());
+    }
+    
+    pub fn get_peer_status(&self, ip: &str) -> PeerStatus{
+        self.peers.lock().get(ip).unwrap().status.clone()
+    }
+    
+
+    // Private functions
     fn start_clients(&mut self, tx: Sender<NetworkControllerEvent::CandidateConnection>) {
         for (_, mut peer) in &mut *self.peers.lock() {
             if self.ip_address.eq(&peer.ip) {
@@ -127,61 +170,50 @@ impl NetworkController {
             peer.status = PeerStatus::OutConnecting;
             let peer_ip = peer.ip.clone();
             let listen_port = self.listen_port.clone();
+            let self_ip = self.ip_address.clone();
             
             tokio::spawn( async move {
-                start_client(peer_ip, listen_port, tx_clone).await;
+                start_client(self_ip, peer_ip, listen_port, tx_clone).await;
             });
         }
     }
-
-    pub fn feedback_peer_connected(&mut self, ip: &str, is_outgoing: bool)
-    {
-        if is_outgoing == true {
-            self.peers.lock().get_mut(ip).unwrap().status = PeerStatus::OutHandshaking;
-        } else {
-            self.peers.lock().get_mut(ip).unwrap().status = PeerStatus::InHandshaking;
-        }
-    }
-
-    pub async fn feedback_peer_alive(&mut self, ip: &str) {
-        match self.peers.lock().get(ip).unwrap().status {
-            PeerStatus::InHandshaking => self.peers.lock().get_mut(ip).unwrap().status = PeerStatus::InAlive,
-            PeerStatus::OutHandshaking => self.peers.lock().get_mut(ip).unwrap().status = PeerStatus::OutAlive,
-            _ => (),
-        }
-        self.peers.lock().get_mut(ip).unwrap().last_alive = Some(Utc::now())
-    }
-    pub async fn feedback_peer_failed(&mut self, ip: &str) {
-        self.peers.lock().get_mut(ip).unwrap().status = PeerStatus::Idle;
-        self.peers.lock().get_mut(ip).unwrap().last_failure = Some(Utc::now())
-    }
-
-    pub fn get_peer_status(&self, ip: &str) -> PeerStatus{
-        self.peers.lock().get(ip).unwrap().status.clone()
-    }
 }
 
-async fn start_client(ip: String, port: String, tx: Sender<NetworkControllerEvent::CandidateConnection>) {
+async fn start_client(self_ip: String, target_ip: String, port: String, tx: Sender<NetworkControllerEvent::CandidateConnection>) {
     
-    let mut client = connect_client(&ip, &port).await;
+    let mut client = connect_client(&self_ip, &target_ip, &port).await;
     tx.send(NetworkControllerEvent::CandidateConnection{
-        ip: ip,
+        ip: target_ip,
         socket: client,
         is_outgoing: true,
     }).await;
 }
 
-async fn connect_client(ip: &str, port: &str) -> TcpStream {
-    let mut client = TcpStream::connect(ip.to_owned() + ":" + &port).await;
+async fn connect_client(self_ip: &str, target_ip: &str, port: &str) -> TcpStream {
+
+    let mut client;
     
-    while let Err(_e) = client {
+    loop {
         println!("client cannot connect, retry in 1 second");
         thread::sleep(Duration::from_secs(1));
-        client = TcpStream::connect(ip.to_owned() + ":" + &port).await;
+        client = get_avaliable_socket(self_ip, port).connect((target_ip.to_owned() + ":" + &port).parse().unwrap()).await;
+
+        match client {
+            Ok(_) => break,
+            Err(_) => (),
+        }
     }
+
     client.unwrap()
 }
 
+fn get_avaliable_socket(self_ip: &str, port: &str) -> TcpSocket {
+    let socket = TcpSocket::new_v4().unwrap();
+    let mut increment = 0;
 
+    while let Err(_) = socket.bind((self_ip.to_owned() + ":" + &(&port.parse::<i32>().unwrap() + increment).to_string()).parse().unwrap()) {
+        increment += 1;
+    }
 
-
+    socket
+}
