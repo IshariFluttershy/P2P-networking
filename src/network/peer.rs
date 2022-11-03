@@ -26,6 +26,7 @@ pub struct Peer {
     pub ip: String,
 }
 
+// Utility function that creates a default json file with two peers
 pub fn create_new_peers_json_file(path: &str) -> Result<(), Error>{
     let peer = Peer {
         status: PeerStatus::Idle,

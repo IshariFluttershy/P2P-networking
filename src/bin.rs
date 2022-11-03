@@ -1,24 +1,13 @@
-use tokio::net::{TcpListener, TcpStream};
-use mini_redis::{Connection, Frame, client};
-use std::thread;
-use std::time::Duration;
+use tokio::net::{TcpStream};
 use std::env;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, serde::ts_seconds_option};
-use std::fs::File;
-use std::fs;
-use std::io::prelude::*;
 use std::io;
-use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::str;
-
-
-
 use network::network::controller::NetworkController;
 use network::network::controller::NetworkControllerEvent;
-use network::network::peer::*;
 
+
+// Start the program with "cargo run IP_ADDRESS" with IP_ADDRESS an IPV4 valid address. It will set the IP address of the program with IP_ADDRESS.
 #[tokio::main]
 async fn main() -> Result<(), Error>{
     let args: Vec<String> = env::args().collect();
@@ -47,12 +36,14 @@ async fn main() -> Result<(), Error>{
         peer_file_dump_interval_seconds
     ).await?;
 
+    // Async loop to listen on net events. When a CandidateConnection is raised, a handcheck is performed.
     tokio::spawn( async move {
         loop {
         tokio::select! {
             evt = net.wait_event() => match evt {
                 Ok(msg) => match msg {
                     NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
+                        println!("New candidate connection. ip: {}, is_outgoing: {}", ip, is_outgoing);
                         net.feedback_peer_connected(&ip, is_outgoing);
 
                         let result;
@@ -63,8 +54,14 @@ async fn main() -> Result<(), Error>{
                         }
 
                         match result {
-                            Ok(()) => net.feedback_peer_alive(&ip).await,
-                            _ => net.feedback_peer_failed(&ip).await,
+                            Ok(()) => {
+                                println!("Handshake success");
+                                net.feedback_peer_alive(&ip).await;
+                                },
+                            _ => {
+                                println!("Handshake failed");
+                                net.feedback_peer_failed(&ip).await;
+                            },
                         }
                     }
                 },
@@ -79,11 +76,13 @@ async fn main() -> Result<(), Error>{
     Ok(())
 }
 
+// TODO: Outgoing handshake must listen and wait for response
+// Handshake function when connection is outgoing. 
 pub async fn try_to_handshake(socket: &TcpStream) -> Result<(), Error> {
     loop {
-        socket.writable().await;
+        socket.writable().await.unwrap();
         match socket.try_write(b"handshake") {
-            Ok(n) => {
+            Ok(_) => {
                 break;
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -98,6 +97,8 @@ pub async fn try_to_handshake(socket: &TcpStream) -> Result<(), Error> {
     Ok(())
 }
 
+// TODO: Incoming handshake must write and send a response
+// Handshake function when connection is incoming. 
 pub async fn listen_to_handshake(socket: &TcpStream) -> Result<(), Error> {
     let mut buf = [0; 4096];
     loop {
@@ -107,7 +108,6 @@ pub async fn listen_to_handshake(socket: &TcpStream) -> Result<(), Error> {
             Ok(0) => return Err(Error::new(ErrorKind::Other, "handshake failed")),
             Ok(n) => {
                 let result = str::from_utf8(&buf[0..n]).unwrap();
-                println!("Read buffer : {:?}", str::from_utf8(&buf[0..n]).unwrap());
                 if result.eq("handshake") {
                     return Ok(());
                 }

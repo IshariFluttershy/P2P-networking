@@ -1,13 +1,13 @@
 {
   "127.0.0.3": {
     "status": "InAlive",
-    "last_alive": 1667437150,
-    "last_failure": 1666142706,
+    "last_alive": 1667515723,
+    "last_failure": null,
     "ip": "127.0.0.3"
   },
   "127.0.0.2": {
     "status": "InAlive",
-    "last_alive": 1667437150,
+    "last_alive": 1667515691,
     "last_failure": null,
     "ip": "127.0.0.2"
   }
