@@ -1,4 +1,4 @@
-# massa-test
+# P2P networking
 
 Open 3 terminals and enter command lines : 
 
